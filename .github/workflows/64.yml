@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: 64
+name: r2sclaude
 
 on:
   repository_dispatch:
@@ -30,18 +30,49 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout
       uses: actions/checkout@main
 
+    - name: Free disk space
+      run: |
+        echo "=============================================================================="
+        echo "Freeing up disk space on CI system"
+        echo "=============================================================================="
+        df -h
+        echo "Removing unnecessary files..."
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /usr/local/.ghcup
+        sudo rm -rf /usr/share/swift
+        sudo rm -rf /usr/local/julia*
+        sudo rm -rf /usr/share/kotlinc
+        sudo rm -rf /usr/local/aws-cli
+        sudo rm -rf /usr/local/aws-sam-cli
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf /usr/lib/jvm
+        sudo rm -rf /opt/az
+        sudo rm -rf /usr/share/gradle-*
+        sudo rm -rf /usr/local/share/chromium
+        sudo rm -rf /usr/local/share/powershell
+        sudo rm -rf /opt/microsoft
+        sudo docker image prune --all --force
+        sudo apt-get clean
+        df -h
+        echo "Disk space freed up successfully"
+
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-        sudo docker image prune --all --force
+        echo "=============================================================================="
+        echo "Initializing build environment"
+        echo "=============================================================================="
+        sudo rm -rf /etc/apt/sources.list.d/*
         sudo -E apt-get -qq update
         sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
         sudo -E apt-get -qq autoremove --purge
@@ -49,29 +80,52 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+        echo "Environment initialized successfully"
+        df -h
 
     - name: Clone source code
       working-directory: /workdir
       run: |
+        echo "=============================================================================="
+        echo "Cloning OpenWrt source code"
+        echo "=============================================================================="
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+        echo "Source code cloned successfully"
+        df -h
 
     - name: Load custom feeds
       run: |
+        echo "=============================================================================="
+        echo "Loading custom feeds"
+        echo "=============================================================================="
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
     - name: Update feeds
-      run: cd openwrt && ./scripts/feeds update -a
+      run: |
+        echo "=============================================================================="
+        echo "Updating feeds"
+        echo "=============================================================================="
+        cd openwrt
+        ./scripts/feeds update -a
 
     - name: Install feeds
-      run: cd openwrt && ./scripts/feeds install -a
+      run: |
+        echo "=============================================================================="
+        echo "Installing feeds"
+        echo "=============================================================================="
+        cd openwrt
+        ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
+        echo "=============================================================================="
+        echo "Loading custom configuration"
+        echo "=============================================================================="
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
@@ -81,18 +135,46 @@ jobs:
     - name: Download package
       id: package
       run: |
+        echo "=============================================================================="
+        echo "Downloading packages"
+        echo "=============================================================================="
         cd openwrt
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
+        echo "Packages downloaded successfully"
+        df -h
+
+    - name: Check configuration
+      run: |
+        echo "=============================================================================="
+        echo "Checking final configuration"
+        echo "=============================================================================="
+        cd openwrt
+        echo "Checking for potentially problematic packages..."
+        echo "--- PassWall status ---"
+        grep "passwall" .config | head -5 || echo "PassWall: disabled"
+        echo "--- Sing-box status ---"
+        grep "sing-box" .config || echo "Sing-box: disabled"
+        echo "--- Xray status ---"
+        grep "xray-core" .config || echo "Xray: disabled"
+        echo "Configuration check completed"
+        df -h
 
     - name: Compile the firmware
       id: compile
       run: |
+        echo "=============================================================================="
+        echo "Starting compilation"
+        echo "=============================================================================="
         cd openwrt
-        echo -e "$(nproc) thread compile"
+        echo "Available threads: $(nproc)"
+        df -h
+        echo "Starting multi-threaded compilation..."
         make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "Compilation completed"
+        df -h
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
@@ -100,7 +182,11 @@ jobs:
 
     - name: Check space usage
       if: (!cancelled())
-      run: df -hT
+      run: |
+        echo "=============================================================================="
+        echo "Final disk space usage"
+        echo "=============================================================================="
+        df -hT
 
     - name: Upload bin directory
       uses: actions/upload-artifact@main
