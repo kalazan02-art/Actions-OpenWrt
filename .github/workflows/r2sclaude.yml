@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: r2sclaude
+name: r2s
 
 on:
   repository_dispatch:
@@ -57,6 +57,9 @@ jobs:
         sudo rm -rf /usr/lib/jvm
         sudo rm -rf /opt/az
         sudo rm -rf /usr/share/gradle-*
+        sudo rm -rf /usr/local/share/chromium
+        sudo rm -rf /usr/local/share/powershell
+        sudo rm -rf /opt/microsoft
         sudo docker image prune --all --force
         sudo apt-get clean
         df -h
@@ -141,6 +144,22 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
         echo "Packages downloaded successfully"
+        df -h
+
+    - name: Check configuration
+      run: |
+        echo "=============================================================================="
+        echo "Checking final configuration"
+        echo "=============================================================================="
+        cd openwrt
+        echo "Checking for potentially problematic packages..."
+        echo "--- PassWall status ---"
+        grep "passwall" .config | head -5 || echo "PassWall: disabled"
+        echo "--- Sing-box status ---"
+        grep "sing-box" .config || echo "Sing-box: disabled"
+        echo "--- Xray status ---"
+        grep "xray-core" .config || echo "Xray: disabled"
+        echo "Configuration check completed"
         df -h
 
     - name: Compile the firmware
