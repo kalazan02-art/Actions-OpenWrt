@@ -16,3 +16,12 @@
 # Add a feed source
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
+# 添加备用下载镜像
+sed -i 's/https:\/\/sources.cdn.openwrt.org/https:\/\/mirrors.tuna.tsinghua.edu.cn\/openwrt/g' scripts/download.pl
+
+# 或者添加更多镜像源
+cat >> scripts/download.pl << 'EOF'
+# Additional mirrors
+push @mirrors, 'https://mirrors.tuna.tsinghua.edu.cn/openwrt/sources/';
+push @mirrors, 'https://mirrors.ustc.edu.cn/openwrt/sources/';
+EOF
