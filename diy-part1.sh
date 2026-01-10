@@ -22,6 +22,6 @@ sed -i 's/https:\/\/sources.cdn.openwrt.org/https:\/\/mirrors.tuna.tsinghua.edu.
 # 或者添加更多镜像源
 cat >> scripts/download.pl << 'EOF'
 # Additional mirrors
-push @mirrors, 'https://mirrors.tuna.tsinghua.edu.cn/openwrt/sources/';
-push @mirrors, 'https://mirrors.ustc.edu.cn/openwrt/sources/';
+#push @mirrors, 'https://mirrors.tuna.tsinghua.edu.cn/openwrt/sources/';
+#push @mirrors, 'https://mirrors.ustc.edu.cn/openwrt/sources/';
 EOF
